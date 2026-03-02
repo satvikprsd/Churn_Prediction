@@ -10,8 +10,8 @@ def load_and_split_data(filepath):
     df.drop(columns=['PlayerID'], inplace=True)
     df.dropna(inplace=True)
     
-    numeric_features = ['PlayTimeHours', 'SessionsPerWeek', 'AvgSessionDurationMinutes', 'AchievementsUnlocked']
-    categorical_features = ['GameDifficulty', 'Gender'] 
+    numeric_features = ['Age', 'PlayTimeHours', 'InGamePurchases', 'SessionsPerWeek','AvgSessionDurationMinutes', 'PlayerLevel', 'AchievementsUnlocked']
+    categorical_features = ['Gender', 'Location', 'GameGenre', 'GameDifficulty'] 
     
     X = df[numeric_features + categorical_features]
     y = df['Churn']
