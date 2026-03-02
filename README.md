@@ -14,7 +14,7 @@ Video Walkthrough: [Video](https://genai-demo.dotenv.live/)
 
 ## Overview
 
-Player churn — the likelihood that a user will stop engaging with a game — is a critical metric for online gaming platforms. This application addresses that problem by training a Random Forest classifier on behavioral and demographic player data. It derives a binary churn label from engagement level, engineers interaction features to improve signal quality, and exposes the model through a two-tab Streamlit interface: one tab for predicting individual player risk and another for inspecting model telemetry.
+Player churn - the likelihood that a user will stop engaging with a game, is a critical metric for online gaming platforms. This application addresses that problem by training a Random Forest classifier on behavioral and demographic player data. It derives a binary churn label from engagement level, engineers interaction features to improve signal quality, and exposes the model through a two-tab Streamlit interface: one tab for predicting individual player risk and another for inspecting model telemetry.
 
 ---
 
@@ -108,7 +108,7 @@ In addition to the raw inputs, the preprocessor derives three interaction featur
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/satvikprsd/Churn_Prediction.git
 cd Churn_Prediction
 
 # Install dependencies
