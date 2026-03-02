@@ -6,6 +6,10 @@ def load_and_split_data(filepath):
     
     df['Churn'] = df['EngagementLevel'].apply(lambda x: 1 if x == 'Low' else 0)
 
+    df.drop(columns=['EngagementLevel'], inplace=True)
+    df.drop(columns=['PlayerID'], inplace=True)
+    df.dropna(inplace=True)
+    
     numeric_features = ['PlayTimeHours', 'SessionsPerWeek', 'AvgSessionDurationMinutes', 'AchievementsUnlocked']
     categorical_features = ['GameDifficulty', 'Gender'] 
     
