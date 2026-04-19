@@ -14,7 +14,7 @@ Video Walkthrough: [Video](https://genai-demo.dotenv.live/)
 
 ## Overview
 
-Player churn - the likelihood that a user will stop engaging with a game, is a critical metric for online gaming platforms. This application addresses that problem by training a Random Forest classifier on behavioral and demographic player data. It derives a binary churn label from engagement level, engineers interaction features to improve signal quality, and exposes the model through a two-tab Streamlit interface: one tab for predicting individual player risk and another for inspecting model telemetry.
+Player churn - the likelihood that a user will stop engaging with a game, is a critical metric for online gaming platforms. This application addresses that problem by training a Random Forest classifier on behavioral and demographic player data. It derives a binary churn label from engagement level, engineers interaction features to improve signal quality, and exposes the model through a three-tab Streamlit interface: one tab for predicting individual player risk, one for model telemetry, and one for agentic retention strategy generation.
 
 ---
 
@@ -45,6 +45,16 @@ Users enter a player profile across three sections: engagement metrics, game pro
 ### Model Telemetry Tab
 
 Displays four key performance metrics computed on the held-out test set: Accuracy, Precision, Recall, and AUC-ROC. A horizontal bar chart shows the top feature importances, revealing which behavioral signals drive churn decisions in the current model.
+
+### Milestone 2: Engagement Agent Tab
+
+Adds an end-to-end intervention workflow for retention teams:
+
+- Portfolio Snapshot: summarizes at-risk volume, critical tier count, and average risk.
+- Risk Tiering: groups players into Watchlist, Moderate, High, and Critical tiers.
+- Rule-Based Diagnostics: surfaces interpretable behavioral flags (for example, low session frequency or progression friction).
+- Agentic Plan Generation: invokes a LangGraph + RAG agent to produce structured recommendations with supporting references.
+- Exportable Brief: allows downloading a markdown strategy brief for reporting and stakeholder review.
 
 ---
 
@@ -101,6 +111,8 @@ In addition to the raw inputs, the preprocessor derives three interaction featur
 | Data Processing | pandas, NumPy |
 | Machine Learning | scikit-learn |
 | Visualization | Plotly |
+| Agentic Workflow | LangGraph, LangChain |
+| Retrieval Layer | ChromaDB, Gemini Embeddings |
 
 ---
 
@@ -113,6 +125,9 @@ cd Churn_Prediction
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Set Gemini API key for milestone 2 agent
+export GOOGLE_API_KEY="your_api_key_here"
 
 # Run the application
 streamlit run src/app.py
