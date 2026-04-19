@@ -1,0 +1,44 @@
+[
+  {
+    "id": "strat_001",
+    "category": "progression_wall",
+    "trigger_metric": "AchievementsPerLevel",
+    "strategy": "Adaptive Pity System: If a player has a low AchievementsPerLevel ratio and plays on high GameDifficulty, they are likely stuck. Implement a hidden 'pity timer' that slightly increases the drop rate of high-tier loot or subtly reduces boss health after 5 consecutive failed attempts to prevent frustration churn."
+  },
+  {
+    "id": "strat_002",
+    "category": "burnout_prevention",
+    "trigger_metric": "PlayTimePerSession",
+    "strategy": "Rest Experience Bonus: For players showing a massive spike in PlayTimePerSession followed by absence (binge burnout), trigger a 'Welcome Back' Rest XP mechanic. When they log in next, grant a 200% XP bonus for the first 30 minutes to make short sessions feel highly rewarding."
+  },
+  {
+    "id": "strat_003",
+    "category": "habit_building",
+    "trigger_metric": "SessionsPerWeek",
+    "strategy": "Escalating Daily Logins: If SessionsPerWeek drops below 3, introduce an escalating 7-day login calendar. Days 1-6 offer minor utility items, but Day 7 offers a highly coveted exclusive cosmetic. Crucially, allow one 'missed day' grace period to prevent the 'broken streak' abandonment."
+  },
+  {
+    "id": "strat_004",
+    "category": "monetization_conversion",
+    "trigger_metric": "InGamePurchases",
+    "strategy": "Premium Trial Drop: For high TotalWeeklyMinutes players who have 0 InGamePurchases, drop a 24-hour 'Premium Pass Trial' directly into their inventory. Letting them experience the quality-of-life benefits of the premium tier often converts free players who are already heavily invested in playtime."
+  },
+  {
+    "id": "strat_005",
+    "category": "social_isolation",
+    "trigger_metric": "SessionsPerWeek",
+    "strategy": "Guild/Clan Matchmaking Push: If a player's frequency is dropping, surface a custom UI prompt suggesting 3 highly active, beginner-friendly guilds that play during the user's typical AvgSessionDurationMinutes window. Social obligations heavily reduce churn."
+  },
+  {
+    "id": "strat_006",
+    "category": "session_optimization",
+    "trigger_metric": "AvgSessionDurationMinutes",
+    "strategy": "Micro-Objectives: For players whose AvgSessionDurationMinutes is dropping below 15 minutes, prioritize loading 'Quick Play' daily bounties on their main screen. Ensure these bounties can be completed in under 10 minutes to accommodate their shrinking available playtime."
+  },
+  {
+    "id": "strat_007",
+    "category": "re_engagement",
+    "trigger_metric": "TotalWeeklyMinutes",
+    "strategy": "Targeted Push Notification: If TotalWeeklyMinutes drops by 50% week-over-week, send a personalized out-of-game push notification or email highlighting a new content drop or limited-time event tailored to their most played GameGenre."
+  }
+]
