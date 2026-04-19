@@ -2,11 +2,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime
 
 from data_handler import load_and_split_data
 from preprocessor import fit_preprocessors, apply_preprocessors
 from model import train_model
 from evaluator import evaluate_model, get_feature_importance
+from rag_store import seed_database
+from agent import run_engagement_agent
 
 # Configure the basic page settings. 
 st.set_page_config(
@@ -67,6 +70,97 @@ st.markdown("""
 st.markdown('<div class="main-header">Player Churn Prediction</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Identify at-risk players to proactively improve retention.</div>', unsafe_allow_html=True)
 
+
+@st.cache_resource(show_spinner=False)
+def init_db():
+    """Seeds the vector store once so the engagement agent can retrieve strategies."""
+    seed_database()
+
+
+init_db()
+
+if "m2_strategy_output" not in st.session_state:
+    st.session_state.m2_strategy_output = ""
+if "m2_strategy_player_id" not in st.session_state:
+    st.session_state.m2_strategy_player_id = None
+
+
+def assign_risk_tier(risk_score: float) -> str:
+    """Maps probability to a business-facing risk tier."""
+    if risk_score >= 0.80:
+        return "Critical"
+    if risk_score >= 0.60:
+        return "High"
+    if risk_score >= 0.40:
+        return "Moderate"
+    return "Watchlist"
+
+
+def derive_behavioral_signals(player_data: dict) -> list[str]:
+    """Creates concise, rule-based diagnostics to complement LLM output."""
+    sessions = float(player_data.get("SessionsPerWeek", 0))
+    avg_session = float(player_data.get("AvgSessionDurationMinutes", 0))
+    playtime = float(player_data.get("PlayTimeHours", 0))
+    level = float(player_data.get("PlayerLevel", 1))
+    achievements = float(player_data.get("AchievementsUnlocked", 0))
+    purchases = float(player_data.get("InGamePurchases", 0))
+
+    signals = []
+    if sessions < 3:
+        signals.append("Low weekly frequency suggests habit decay.")
+    if avg_session < 15:
+        signals.append("Very short sessions indicate reduced engagement depth.")
+    if level > 0 and (achievements / level) < 0.6:
+        signals.append("Low achievements-per-level may indicate progression friction.")
+    if purchases == 0 and playtime >= 10:
+        signals.append("High activity but no purchases indicates monetization conversion opportunity.")
+    if sessions >= 7 and avg_session >= 120:
+        signals.append("Potential binge pattern observed; burnout prevention should be considered.")
+
+    if not signals:
+        signals.append("No extreme behavioral anomaly detected; monitor trend over the next 7 days.")
+    return signals
+
+
+def intervention_priority(risk_score: float) -> tuple[str, str]:
+    """Returns intervention urgency and target response SLA."""
+    if risk_score >= 0.80:
+        return "Immediate", "Within 24 hours"
+    if risk_score >= 0.60:
+        return "Urgent", "Within 72 hours"
+    if risk_score >= 0.40:
+        return "Planned", "Within 7 days"
+    return "Observe", "Monitor only"
+
+
+def build_strategy_brief(
+    player_id,
+    risk_score: float,
+    risk_tier: str,
+    priority: str,
+    sla: str,
+    behavioral_signals: list[str],
+    strategy_text: str,
+) -> str:
+    """Builds an exportable markdown report for milestone 2 demos."""
+    signal_block = "\n".join([f"- {item}" for item in behavioral_signals])
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return (
+        f"# Retention Strategy Brief\n\n"
+        f"Generated: {timestamp}\n\n"
+        f"## Player Context\n"
+        f"- Player Index: {player_id}\n"
+        f"- Churn Risk Score: {risk_score:.2%}\n"
+        f"- Risk Tier: {risk_tier}\n"
+        f"- Intervention Priority: {priority}\n"
+        f"- Response SLA: {sla}\n\n"
+        f"## Behavioral Signals\n"
+        f"{signal_block}\n\n"
+        f"## AI Retention Plan\n"
+        f"{strategy_text}\n"
+    )
+
 @st.cache_resource(show_spinner=False)
 def load_and_train():
     """
@@ -79,7 +173,8 @@ def load_and_train():
     
     Returns:
         tuple: Containing the trained model, fitted scaler, fitted encoder, 
-               feature lists, processed training/testing data, and test labels.
+               feature lists, processed training/testing data, test labels,
+               and raw test features for milestone 2 workflows.
     """
     data_splits, num_feats, cat_feats = load_and_split_data(
         "data/online_gaming_behavior_dataset.csv"
@@ -96,14 +191,18 @@ def load_and_train():
     # Train the machine learning model
     model = train_model(X_train_proc, y_train)
     
-    return model, scaler, encoder, num_feats, cat_feats, X_train_proc, X_test_proc, y_test
+    return model, scaler, encoder, num_feats, cat_feats, X_train_proc, X_test_proc, y_test, X_test
 
 # Initialize the pipeline and show a spinner while the cache is building
 with st.spinner("Initializing models..."):
-    model, scaler, encoder, num_feats, cat_feats, X_train_proc, X_test_proc, y_test = load_and_train()
+    model, scaler, encoder, num_feats, cat_feats, X_train_proc, X_test_proc, y_test, X_test_raw = load_and_train()
 
-# Define the tabs. Telemetry is first, Predict is second.
-tab_eval, tab_predict = st.tabs(["Model Telemetry", "Predict Player Risk"])
+# Define the tabs with Milestone 2 first for demo flow.
+tab_m2, tab_eval, tab_predict = st.tabs([
+    "Milestone 2: Engagement Agent",
+    "Model Telemetry",
+    "Predict Player Risk",
+])
 
 # --- TAB 1: MODEL TELEMETRY ---
 with tab_eval:
@@ -269,3 +368,121 @@ with tab_predict:
                 margin=dict(l=20, r=20, t=40, b=10),
             )
             st.plotly_chart(fig_gauge, width="stretch", key="gauge_chart")
+
+
+# --- TAB 1: MILESTONE 2 ENGAGEMENT AGENT ---
+with tab_m2:
+    st.markdown("### Agentic Engagement Optimization")
+    st.caption("Prioritize at-risk players and generate a personalized retention strategy using a LangGraph + RAG agent.")
+
+    y_pred = model.predict(X_test_proc)
+    y_prob = model.predict_proba(X_test_proc)[:, 1]
+
+    results_df = X_test_raw.copy()
+    results_df["Churn_Prediction"] = y_pred
+    results_df["Risk_Score"] = y_prob
+    results_df["Risk_Tier"] = results_df["Risk_Score"].apply(assign_risk_tier)
+    at_risk_players = results_df[results_df["Churn_Prediction"] == 1]
+
+    if not at_risk_players.empty:
+        st.markdown("#### At-Risk Portfolio Snapshot")
+        critical_count = int((at_risk_players["Risk_Tier"] == "Critical").sum())
+        high_or_above = int((at_risk_players["Risk_Score"] >= 0.60).sum())
+        avg_risk = float(at_risk_players["Risk_Score"].mean())
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("At-Risk Players", f"{len(at_risk_players)}")
+        m2.metric("Critical Tier", f"{critical_count}")
+        m3.metric("Avg Risk", f"{avg_risk:.2%}")
+
+        st.caption(f"{high_or_above} players are High/Critical and should be prioritized this cycle.")
+
+        preview_cols = [
+            "Risk_Score",
+            "Risk_Tier",
+            "SessionsPerWeek",
+            "AvgSessionDurationMinutes",
+            "InGamePurchases",
+            "GameGenre",
+        ]
+        st.dataframe(
+            at_risk_players[preview_cols]
+            .sort_values("Risk_Score", ascending=False)
+            .head(12)
+            .style.format({"Risk_Score": "{:.2%}"}),
+            width="stretch",
+        )
+
+        player_id = st.selectbox(
+            "Select an At-Risk Player (by Index) to generate a strategy:",
+            at_risk_players.sort_values("Risk_Score", ascending=False).index,
+        )
+
+        selected_player_data = at_risk_players.loc[player_id].drop(["Churn_Prediction", "Risk_Score"]).to_dict()
+        selected_risk_score = at_risk_players.loc[player_id, "Risk_Score"]
+        selected_prediction = at_risk_players.loc[player_id, "Churn_Prediction"]
+        selected_risk_tier = at_risk_players.loc[player_id, "Risk_Tier"]
+        selected_priority, selected_sla = intervention_priority(float(selected_risk_score))
+        behavioral_signals = derive_behavioral_signals(selected_player_data)
+
+        with st.expander("View Player's Raw Metrics"):
+            st.json(selected_player_data)
+            r1, r2, r3 = st.columns(3)
+            r1.metric("Risk Score", f"{selected_risk_score:.2%}")
+            r2.metric("Risk Tier", selected_risk_tier)
+            r3.metric("Priority", selected_priority)
+
+        st.markdown("#### Rule-Based Diagnostic Signals")
+        for signal in behavioral_signals:
+            st.markdown(f"- {signal}")
+
+        st.info(f"Intervention SLA: {selected_sla}")
+
+        if st.button("Generate AI Retention Strategy", key="generate_strategy"):
+            with st.spinner("Agent is retrieving strategies and generating plan..."):
+                try:
+                    strategy_output = run_engagement_agent(
+                        player_data=selected_player_data,
+                        risk_score=selected_risk_score,
+                        prediction=int(selected_prediction),
+                    )
+                except Exception as exc:
+                    strategy_output = (
+                        "1. Summary: Strategy generation unavailable.\n"
+                        "2. Analysis: Runtime exception occurred while invoking the engagement agent.\n"
+                        "3. Plan: Trigger a manual campaign (daily login calendar + limited-time reward).\n"
+                        "4. Refs: Fallback plan initiated by app runtime guard.\n"
+                        "5. Disclaimer: Validate interventions with A/B testing before production rollout.\n\n"
+                        f"Error details: {exc}"
+                    )
+
+                st.session_state.m2_strategy_output = strategy_output
+                st.session_state.m2_strategy_player_id = player_id
+
+        if (
+            st.session_state.m2_strategy_output
+            and st.session_state.m2_strategy_player_id == player_id
+        ):
+            strategy_output = st.session_state.m2_strategy_output
+
+            st.success("Strategy Generated Successfully!")
+            st.markdown(strategy_output)
+
+            strategy_brief = build_strategy_brief(
+                player_id=player_id,
+                risk_score=float(selected_risk_score),
+                risk_tier=selected_risk_tier,
+                priority=selected_priority,
+                sla=selected_sla,
+                behavioral_signals=behavioral_signals,
+                strategy_text=strategy_output,
+            )
+            st.download_button(
+                "Download Strategy Brief (.md)",
+                data=strategy_brief,
+                file_name=f"retention_brief_player_{player_id}.md",
+                mime="text/markdown",
+                use_container_width=True,
+            )
+    else:
+        st.success("No at-risk players found in the current test sample.")
